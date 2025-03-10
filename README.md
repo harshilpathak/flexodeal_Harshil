@@ -1,2 +1,3 @@
 # flexodeal_Harshil
-flexodeal with the cylindrical geometry
+## Flexodeal with the cylindrical geometry
+This code is an replica of flexodeal. 
