@@ -12,8 +12,10 @@ CTestTestfile.cmake
 _deps
 CMakeUserPresets.json
 
+
 # Flexodeal
 flexodeal
 2024*/
 output*/
 2025*/
+Helix*/
