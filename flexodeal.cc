@@ -1095,7 +1095,7 @@ namespace Flexodeal
 
     double get_stretch() const
     {
-      return std::pow(det_F, 1/3) * stretch_bar;
+      return std::pow(det_F, 1.0/3.0) * stretch_bar;
     }
 
     double get_stretch_bar() const
@@ -1105,7 +1105,7 @@ namespace Flexodeal
 
     double get_strain_rate() const
     {
-      return std::pow(det_F, 1/3) * (strain_rate_bar + (1.0/dim) * (trace_d/strain_rate_naught) * stretch_bar);
+      return std::pow(det_F, 1.0/3.0) * (strain_rate_bar + (1.0/dim) * (trace_d/strain_rate_naught) * stretch_bar);
     }
 
     double get_strain_rate_bar() const
@@ -1115,7 +1115,7 @@ namespace Flexodeal
 
     Tensor<1, dim> get_orientation() const
     {
-      return std::pow(det_F, 1/3) * orientation;
+      return std::pow(det_F, 1.0/3.0) * orientation;
     }
 
     unsigned int get_tissue_id() const
@@ -1280,7 +1280,7 @@ namespace Flexodeal
         third_term  =   (1 / std::pow( stretch_bar ,3))
                       * sigma_naught_muscle
                       * activation_level
-                      * get_length_stress() * get_dstrain_rate_stress_dstrain_rate() * (1.0 / delta_t);
+                      * get_length_stress() * get_dstrain_rate_stress_dstrain_rate() * (1.0 / (strain_rate_naught * delta_t));
       }
 
       return (first_term + second_term + third_term) * 
@@ -2916,7 +2916,7 @@ namespace Flexodeal
     const BlockVector<double> solution_total(
       get_total_solution(solution_delta));
 
-    const UpdateFlags uf_UQPH(update_values | update_gradients);
+    const UpdateFlags uf_UQPH(update_values | update_gradients | update_quadrature_points);
     PerTaskData_UQPH  per_task_data_UQPH;
     ScratchData_UQPH  scratch_data_UQPH(fe, qf_cell, uf_UQPH, solution_total);
 
@@ -2955,7 +2955,10 @@ namespace Flexodeal
            ExcInternalError());
 
     scratch.reset();
-
+    std::ostringstream filename;
+    filename << save_dir << "/activation_data-" << dim << "d.csv";
+    std::ofstream output;
+    output.open(filename.str(), std::ios_base::app);
     // We first need to find the values and gradients at quadrature points
     // inside the current cell and then we update each local QP using the
     // displacement gradient and total pressure and dilatation solution
@@ -2970,14 +2973,45 @@ namespace Flexodeal
     scratch.fe_values[J_fe].get_function_values(
       scratch.solution_total, scratch.solution_values_J_total);
 
+    const std::vector<Point<dim>> qp = scratch.fe_values.get_quadrature_points();
+    
     for (const unsigned int q_point :
          scratch.fe_values.quadrature_point_indices())
-      lqph[q_point]->update_values(scratch.solution_values_u_total[q_point],
+        {
+          float qp_x = qp[q_point][0];
+          float qp_y = qp[q_point][1];
+          float qp_z = qp[q_point][2];
+          const double radius = std::sqrt(qp_y*qp_y + qp_z*qp_z);
+          const double r1 = 0.0048109;   // 0.004206301 for R1(2-circles)  0.0046138713 for R2(2-circles) 0.0048109 for R3(2-circles) condition radius > r1
+          double activation = 0.0;
+           if(radius > r1)
+          {
+            //a = activation_function(time.current())*100;
+            //activation = std::exp(-((a - 2)*(a - 2)));
+            lqph[q_point]->update_values(scratch.solution_values_u_total[q_point],
                                    scratch.solution_grads_u_total[q_point],
                                    scratch.solution_values_p_total[q_point],
                                    scratch.solution_values_J_total[q_point],
                                    activation_function(time.current()),
                                    time.get_delta_t());
+           activation = activation_function(time.current());
+          //std::cout << "Q-Point of use\t" << (time.end() - time.current()) << "\n" << std::endl;
+
+          }
+          else
+          {
+            //a = activation_function(time.current())*100;
+            //activation = std::exp(-((a - 11)*(a - 11)));
+            lqph[q_point]->update_values(scratch.solution_values_u_total[q_point],
+                                   scratch.solution_grads_u_total[q_point],
+                                   scratch.solution_values_p_total[q_point],
+                                   scratch.solution_values_J_total[q_point],
+                                   0,
+                                   time.get_delta_t());
+            activation = 0.0;
+          }
+          output << qp_x << "," << qp_y << "," << qp_z << "," << activation << "\n";
+        }
   }
 
   // The update at the end of the time step is even simpler. It only needs to
