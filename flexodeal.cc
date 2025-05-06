@@ -2470,8 +2470,8 @@ namespace Flexodeal
   template <int dim>
   void Solid<dim>::make_grid()
   {
-   GridGenerator::subdivided_cylinder(triangulation,parameters.height,parameters.length,parameters.width); //If we want refined mesh in longitudinal direction
-   //GridGenerator::cylinder(triangulation,parameters.length,parameters.width);   
+   //GridGenerator::subdivided_cylinder(triangulation,parameters.height,parameters.length,parameters.width); //If we want refined mesh in longitudinal direction
+   GridGenerator::cylinder(triangulation,parameters.length,parameters.width);   
    // The cuboidal geometry
    //GridGenerator::hyper_rectangle(
    //triangulation,
